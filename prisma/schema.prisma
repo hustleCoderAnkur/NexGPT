@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum MessageStatus {
+  PENDING
+  COMPLETE
+  ERROR
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  conversations Conversation[]
+  documents     Document[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String   @default("New Chat")
+  model         String
+  systemPrompt  String?
+  isPinned      Boolean  @default(false)
+  isArchived    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastMessageAt DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([userId, isPinned, lastMessageAt(sort: Desc)])
+  @@index([userId, isArchived, lastMessageAt(sort: Desc)])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  status         MessageStatus @default(COMPLETE)
+  content        String?       @db.Text
+  parts          Json?
+  metadata       Json?
+  parentId       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  parent Message? @relation("MessageBranch", fields: [parentId], references: [id], onDelete: SetNull)
+
+  children Message[] @relation("MessageBranch")
+
+  @@index([conversationId, createdAt(sort: Asc)])
+  @@index([parentId])
+}
+
+
+// RAG documents are scoped to the uploading user. Embeddings are stored as
+// JSON vectors for portable first-version retrieval; pgvector can replace this
+// storage after the retrieval evaluation suite is established.
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  userId      String
+  name        String
+  mimeType    String
+  sizeBytes   Int
+  status      DocumentStatus @default(PENDING)
+  error       String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks      DocumentChunk[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, status])
+}
+
+model DocumentChunk {
+  id          String   @id @default(cuid())
+  documentId  String
+  ordinal     Int
+  content     String   @db.Text
+  embedding   Json?
+  tokenCount  Int      @default(0)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, ordinal])
+  @@index([documentId, ordinal])
+}
+
+model AITrace {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String?
+  operation      String
+  provider       String?
+  modelId        String?
+  status         String
+  durationMs     Int?
+  inputTokens    Int?
+  outputTokens   Int?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([operation, status])
+}

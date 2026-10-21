@@ -1,0 +1,3 @@
+export type AgentState = "idle" | "running" | "waiting_for_tool" | "completed" | "failed" | "cancelled" | "budget_exceeded";
+const transitions: Record<AgentState, AgentState[]> = { idle: ["running", "cancelled"], running: ["waiting_for_tool", "completed", "failed", "cancelled", "budget_exceeded"], waiting_for_tool: ["running", "failed", "cancelled", "budget_exceeded"], completed: [], failed: [], cancelled: [], budget_exceeded: [] };
+export function transitionState(from: AgentState, to: AgentState): AgentState { if (!transitions[from].includes(to)) throw new Error(`Invalid agent state transition: ${from} -> ${to}`); return to; }
