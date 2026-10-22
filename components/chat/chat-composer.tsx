@@ -26,7 +26,7 @@ type ChatComposerProps = {
 export function ChatComposer({
     onSend,
     isSending = false,
-    placeholder = "Message ChaiGPT…",
+    placeholder = "Message NexGPT…",
     className,
     autoFocus = false,
 }: ChatComposerProps) {
@@ -63,9 +63,9 @@ export function ChatComposer({
     return (
         <form
             onSubmit={(event) => void handleSubmit(event)}
-            className={cn("mx-auto w-full max-w-3xl px-4 pb-4 md:px-6", className)}
+            className={cn("mx-auto w-full max-w-4xl px-4 pb-4 md:px-6", className)}
         >
-            <InputGroup className="h-auto min-h-14 rounded-3xl border-border/80 bg-background shadow-sm dark:bg-input/40">
+            <InputGroup className="group h-auto min-h-16 rounded-2xl border-2 border-black bg-[#fffdf7] shadow-[4px_4px_0_#171717] transition-shadow focus-within:shadow-[6px_6px_0_#b7f34a] dark:border-white dark:bg-[#171717] dark:shadow-[4px_4px_0_#b7f34a]">
                 <InputGroupTextarea
                     ref={textareaRef}
                     value={value}
@@ -74,22 +74,22 @@ export function ChatComposer({
                     placeholder={placeholder}
                     disabled={isSending}
                     rows={1}
-                    className="max-h-48 min-h-12 py-3.5 pl-4 text-[15px] leading-relaxed"
+                    className="max-h-48 min-h-14 resize-none border-0 bg-transparent py-4 pl-4 pr-2 text-[15px] leading-relaxed text-[#171717] outline-none placeholder:text-black/45 focus-visible:ring-0 dark:text-[#fffdf7] dark:placeholder:text-white/40"
                 />
-                <InputGroupAddon align="inline-end" className="pr-2 pb-2 self-end">
+                <InputGroupAddon align="inline-end" className="self-end pb-2 pr-2">
                     <InputGroupButton
                         type="submit"
                         size="icon-sm"
                         variant="default"
                         disabled={!canSend}
-                        className="size-9 rounded-full"
+                        className="size-10 rounded-xl border-2 border-black bg-[#b7f34a] text-black shadow-[2px_2px_0_#171717] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:border-black/20 disabled:bg-black/10 disabled:text-black/30 disabled:shadow-none dark:border-white dark:bg-[#b7f34a] dark:text-black dark:shadow-[2px_2px_0_#fffdf7] dark:disabled:border-white/20 dark:disabled:bg-white/10 dark:disabled:text-white/30"
                         aria-label="Send message"
                     >
                         {isSending ? <Spinner /> : <ArrowUpIcon />}
                     </InputGroupButton>
                 </InputGroupAddon>
             </InputGroup>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
+            <p className="mt-3 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/50">
                 ChaiGPT can make mistakes. Check important info.
             </p>
         </form>

@@ -43,7 +43,7 @@ function fail(
     error: string,
 ) {
     const target = new URL(
-        intent === "register" ? "/register" : "/login",
+        intent === "register" ? "/signup" : "/login",
         request.url,
     );
 
@@ -221,7 +221,7 @@ export async function GET(request: Request) {
 
         // Redirect directly to the dashboard; no /complete page.
         const response = NextResponse.redirect(
-            new URL("/", request.url),
+            new URL("/agents", request.url),
         );
 
         response.headers.set("Cache-Control", "no-store");

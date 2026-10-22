@@ -163,10 +163,10 @@ function AssistantResponseCard({
     const label = provider ? getProviderLabel(provider) : "AI assistant";
     const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
     return (
-        <article className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <header className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+        <article className="min-w-0 overflow-hidden border-2 border-neutral-950 bg-[#fffdf7] text-neutral-950 shadow-[5px_5px_0_0_#171717] transition-shadow duration-200 hover:shadow-[7px_7px_0_0_#171717] dark:border-neutral-100 dark:bg-neutral-950 dark:text-neutral-50 dark:shadow-[5px_5px_0_0_#a3e635]">
+            <header className="flex items-center justify-between gap-3 border-b-2 border-neutral-950 bg-lime-300 px-4 py-3 text-neutral-950 dark:border-neutral-100 dark:bg-lime-300">
                 <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted">
+                    <span className="flex size-9 shrink-0 items-center justify-center border-2 border-neutral-950 bg-[#fffdf7] text-neutral-950">
                         <ProviderLogo provider={provider} />
                     </span>
                     <div className="min-w-0">
@@ -174,7 +174,7 @@ function AssistantResponseCard({
                         <p className="truncate text-xs text-muted-foreground">{message.modelId ?? "AI response"}</p>
                     </div>
                 </div>
-                <button type="button" onClick={() => void onCopy()} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-muted" aria-label="Copy response"><Copy size={13} />{copied ? "Copied" : "Copy"}</button>
+                <button type="button" onClick={() => void onCopy()} className="inline-flex shrink-0 items-center gap-1.5 border-2 border-neutral-950 bg-[#fffdf7] px-2.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-0.5 hover:bg-neutral-950 hover:text-white" aria-label="Copy response"><Copy size={13} />{copied ? "Copied" : "Copy"}</button>
             </header>
             <div className="p-4">
                 <Message from="assistant"><MessageContent><MessageResponse>{message.content}</MessageResponse></MessageContent></Message>
@@ -184,8 +184,8 @@ function AssistantResponseCard({
                 <div className="mt-2 space-y-1">{sources.map((source) => <p key={source.chunkId}>[{source.index}] {source.documentName} · relevance {source.score.toFixed(2)}</p>)}</div>
             </details> : null}
 
-            <div className="mt-3 flex items-center gap-1 border-t px-3 py-2.5">
-                <button type="button" onClick={() => void onCopy()} title={copied ? "Copied" : "Copy response"} aria-label={copied ? "Copied response" : "Copy response"} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            <div className="mt-3 flex items-center gap-1 border-t-2 border-neutral-200 px-3 py-2.5 dark:border-neutral-800">
+                <button type="button" onClick={() => void onCopy()} title={copied ? "Copied" : "Copy response"} aria-label={copied ? "Copied response" : "Copy response"} className="rounded-md p-2 text-neutral-500 transition-all hover:bg-neutral-950 hover:text-white dark:hover:bg-lime-300 dark:hover:text-neutral-950">
                     {copied ? <Check size={17} /> : <Copy size={17} />}
                 </button>
 
@@ -233,7 +233,7 @@ function AssistantResponseCard({
                     if (!("speechSynthesis" in window)) return;
                     window.speechSynthesis.cancel();
                     window.speechSynthesis.speak(new SpeechSynthesisUtterance(message.content));
-                }} title="Read aloud" aria-label="Read response aloud" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                }} title="Read aloud" aria-label="Read response aloud" className="rounded-md p-2 text-neutral-500 transition-all hover:bg-neutral-950 hover:text-white dark:hover:bg-lime-300 dark:hover:text-neutral-950">
                     <Volume2 size={17} />
                 </button>
                 <button type="button" onClick={() => {
@@ -242,7 +242,7 @@ function AssistantResponseCard({
                     } else {
                         void navigator.clipboard.writeText(message.content);
                     }
-                }} title="Share response" aria-label="Share response" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                }} title="Share response" aria-label="Share response" className="rounded-md p-2 text-neutral-500 transition-all hover:bg-neutral-950 hover:text-white dark:hover:bg-lime-300 dark:hover:text-neutral-950">
                     <Share2 size={17} />
                 </button>
             </div>
@@ -473,7 +473,7 @@ export function ChatWorkspace({
                 window.history.replaceState(
                     null,
                     "",
-                    `/c/${created.id}`,
+                    `/agents/c/${created.id}`,
                 );
             }
 
@@ -758,21 +758,21 @@ export function ChatWorkspace({
 
 
     return (
-        <main className="flex min-h-0 flex-1 flex-col bg-background">
+        <main className="flex min-h-0 flex-1 flex-col bg-[#f4f0e8] text-neutral-950 dark:bg-[#11110f] dark:text-neutral-50">
             <div className="flex min-h-0 flex-1 flex-col">
                 <Conversation className="min-h-0 flex-1">
-                    <ConversationContent className="mx-auto w-full max-w-4xl gap-6 px-4 py-8 md:px-6">
+                    <ConversationContent className="mx-auto w-full max-w-5xl gap-8 px-4 py-8 md:px-8 lg:py-10">
                         {messages.length === 0 ? (
-                            <div className="flex min-h-[42vh] flex-col items-center justify-center text-center">
-                                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                            <div className="relative flex min-h-[48vh] flex-col items-center justify-center overflow-hidden border-2 border-neutral-950 bg-[#fffdf7] px-5 py-12 text-center shadow-[7px_7px_0_0_#171717] dark:border-neutral-100 dark:bg-neutral-950 dark:shadow-[7px_7px_0_0_#a3e635]">
+                                <div className="mb-6 flex size-16 items-center justify-center border-2 border-neutral-950 bg-lime-300 text-neutral-950 shadow-[4px_4px_0_0_#171717]">
                                     <Plus size={26} />
                                 </div>
 
-                                <h1 className="text-2xl font-semibold tracking-tight">
+                                <h1 className="text-3xl font-black uppercase leading-[0.95] tracking-[-0.07em] sm:text-5xl">
                                     Where should we begin?
                                 </h1>
 
-                                <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                                <p className="mt-4 max-w-lg text-sm leading-6 text-neutral-600 dark:text-neutral-300 sm:text-base">
                                     Choose one or more AI providers, add your
                                     API keys, and compare their responses.
                                 </p>
@@ -805,7 +805,7 @@ export function ChatWorkspace({
                                             {turn.user.attachments.map((file) => (
                                                 <div
                                                     key={file.documentId}
-                                                    className="flex max-w-full items-center gap-2 rounded-2xl border bg-muted/40 px-3 py-2 text-xs"
+                                                    className="flex max-w-full items-center gap-2 border-2 border-neutral-950 bg-[#fffdf7] px-3 py-2 text-xs shadow-[3px_3px_0_0_#171717] dark:border-neutral-100 dark:bg-neutral-900"
                                                 >
                                                     <FileText size={17} className="shrink-0 text-primary" />
                                                     <div className="min-w-0">
@@ -822,7 +822,7 @@ export function ChatWorkspace({
                                     ) : null}
 
                                     {turn.user.content ? (
-                                        <div className="ml-auto max-w-3xl">
+                                        <div className="ml-auto max-w-3xl border-l-4 border-lime-400 pl-3">
                                             <Message from="user">
                                                 <MessageContent>
                                                     <MessageResponse>{turn.user.content}</MessageResponse>
@@ -842,12 +842,12 @@ export function ChatWorkspace({
                                                         </p>
                                                     </div>
                                                     {selected.length >= 2 && responseCount >= 2 && (
-                                                        <div className="inline-flex rounded-xl border p-1">
+                                                        <div className="inline-flex border-2 border-neutral-950 bg-[#fffdf7] p-1 dark:border-neutral-100 dark:bg-neutral-900">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setResponseView("swipe")}
                                                                 aria-pressed={responseView === "swipe"}
-                                                                className={`rounded-lg px-3 py-1.5 text-xs ${responseView === "swipe" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                                                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${responseView === "swipe" ? "bg-neutral-950 text-white dark:bg-lime-300 dark:text-neutral-950" : "hover:bg-lime-100 dark:hover:bg-neutral-800"}`}
                                                             >
                                                                 <span className="inline-flex items-center gap-1.5">
                                                                     <ChevronLeft size={13} /><ChevronRight size={13} /> Swipe
@@ -857,7 +857,7 @@ export function ChatWorkspace({
                                                                 type="button"
                                                                 onClick={() => setResponseView("compare")}
                                                                 aria-pressed={responseView === "compare"}
-                                                                className={`rounded-lg px-3 py-1.5 text-xs ${responseView === "compare" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                                                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${responseView === "compare" ? "bg-neutral-950 text-white dark:bg-lime-300 dark:text-neutral-950" : "hover:bg-lime-100 dark:hover:bg-neutral-800"}`}
                                                             >
                                                                 <span className="inline-flex items-center gap-1.5">
                                                                     <Columns2 size={14} /> Compare
@@ -877,7 +877,7 @@ export function ChatWorkspace({
                                                             aria-label="Previous response"
                                                             disabled={safeActiveResponse <= 0}
                                                             onClick={() => setActiveResponse((index) => Math.max(0, index - 1))}
-                                                            className="rounded-lg border p-1.5 disabled:opacity-30"
+                                                            className="border-2 border-neutral-950 p-1.5 transition-colors hover:bg-lime-300 disabled:opacity-30 dark:border-neutral-100"
                                                         >
                                                             <ChevronLeft size={16} />
                                                         </button>
@@ -886,7 +886,7 @@ export function ChatWorkspace({
                                                             aria-label="Next response"
                                                             disabled={safeActiveResponse >= responseCount - 1}
                                                             onClick={() => setActiveResponse((index) => Math.min(responseCount - 1, index + 1))}
-                                                            className="rounded-lg border p-1.5 disabled:opacity-30"
+                                                            className="border-2 border-neutral-950 p-1.5 transition-colors hover:bg-lime-300 disabled:opacity-30 dark:border-neutral-100"
                                                         >
                                                             <ChevronRight size={16} />
                                                         </button>
@@ -936,7 +936,7 @@ export function ChatWorkspace({
                         })}
 
                         {busy && turns.length === 0 && (
-                            <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3" aria-live="polite">
+                            <div className="flex items-center gap-3 border-2 border-neutral-950 bg-lime-100 px-4 py-3 dark:border-neutral-100 dark:bg-neutral-900" aria-live="polite">
                                 <LoaderCircle className="size-4 shrink-0 animate-spin text-primary" />
                                 <p className="text-sm text-muted-foreground">{statusPhrases[statusPhraseIndex]}…</p>
                             </div>
@@ -958,9 +958,9 @@ export function ChatWorkspace({
                                     disabled={busy}
                                     onClick={() => toggleProvider(provider.id)}
                                     aria-pressed={active}
-                                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-border bg-background hover:bg-accent"
+                                    className={`border-2 px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-all disabled:cursor-not-allowed disabled:opacity-50 ${active
+                                        ? "border-neutral-950 bg-lime-300 text-neutral-950 shadow-[3px_3px_0_0_#171717] dark:border-lime-300"
+                                        : "border-neutral-300 bg-[#fffdf7] hover:border-neutral-950 hover:bg-lime-100 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-lime-300"
                                         }`}
                                 >
                                     {provider.label}
@@ -971,7 +971,7 @@ export function ChatWorkspace({
                         <button
                             type="button"
                             onClick={() => setShowKeys((value) => !value)}
-                            className="ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs hover:bg-accent"
+                            className="ml-auto inline-flex items-center gap-1.5 border-2 border-neutral-950 bg-[#fffdf7] px-3 py-2 text-xs font-bold uppercase tracking-wide hover:bg-lime-200 dark:border-neutral-100 dark:bg-neutral-900"
                         >
                             {showKeys ? (
                                 <X size={13} />
@@ -992,7 +992,7 @@ export function ChatWorkspace({
                     ) : null}
 
                     {showKeys ? (
-                        <div className="mb-3 grid gap-3 rounded-2xl border p-3 sm:grid-cols-3">
+                        <div className="mb-3 grid gap-3 border-2 border-neutral-950 bg-[#fffdf7] p-4 sm:grid-cols-3 dark:border-neutral-100 dark:bg-neutral-950">
                             {PROVIDERS.filter((provider) =>
                                 selected.includes(provider.id),
                             ).map((provider) => (
@@ -1015,7 +1015,7 @@ export function ChatWorkspace({
                                             )
                                         }
                                         placeholder="Paste API key"
-                                        className="h-9 min-w-0 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                                        className="h-10 min-w-0 rounded-none border-2 border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-950 focus:ring-2 focus:ring-lime-300 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
                                     />
 
                                     {errors[provider.id] ? (
@@ -1038,7 +1038,7 @@ export function ChatWorkspace({
 
                     <form
                         onSubmit={(event) => void sendMessage(event)}
-                        className="rounded-[28px] border bg-background p-3 shadow-sm transition-shadow focus-within:ring-1 focus-within:ring-ring"
+                        className="rounded-none border-2 border-neutral-950 bg-[#fffdf7] p-3 shadow-[6px_6px_0_0_#171717] transition-all focus-within:shadow-[8px_8px_0_0_#a3e635] dark:border-neutral-100 dark:bg-neutral-950 dark:shadow-[6px_6px_0_0_#a3e635]"
                     >
                         <input
                             ref={fileInputRef}
@@ -1065,7 +1065,7 @@ export function ChatWorkspace({
                             placeholder="Message NexGPT…"
                             rows={2}
                             disabled={busy}
-                            className="max-h-48 min-h-16 w-full resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                            className="max-h-48 min-h-20 w-full resize-y bg-transparent px-3 py-3 text-[15px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-50"
                         />
 
                         {attachedFiles.length > 0 && (
@@ -1073,7 +1073,7 @@ export function ChatWorkspace({
                                 {attachedFiles.map((file, index) => (
                                     <div
                                         key={`${file.name}-${file.size}-${index}`}
-                                        className="flex max-w-full items-center gap-2 rounded-xl border bg-muted/40 px-3 py-2 text-xs"
+                                        className="flex max-w-full items-center gap-2 border-2 border-neutral-950 bg-lime-100 px-3 py-2 text-xs dark:border-neutral-100 dark:bg-neutral-900"
                                     >
                                         <FileText size={15} className="shrink-0" />
 
@@ -1102,7 +1102,7 @@ export function ChatWorkspace({
                                 title="Attach files"
                                 disabled={busy}
                                 onClick={() => fileInputRef.current?.click()}
-                                className="flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-muted disabled:opacity-40"
+                                className="flex size-10 shrink-0 items-center justify-center border-2 border-neutral-950 bg-white transition-all hover:-translate-y-0.5 hover:bg-lime-200 disabled:opacity-40 dark:border-neutral-100 dark:bg-neutral-900"
                             >
                                 <Plus size={21} />
                             </button>
@@ -1116,7 +1116,7 @@ export function ChatWorkspace({
                                     selected.length === 0
                                 }
                                 aria-label="Send message"
-                                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
+                                className="flex size-11 shrink-0 items-center justify-center border-2 border-neutral-950 bg-lime-300 text-neutral-950 shadow-[3px_3px_0_0_#171717] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:opacity-40"
                             >
                                 {busy ? (
                                     <LoaderCircle size={17} className="animate-spin" />
@@ -1127,7 +1127,7 @@ export function ChatWorkspace({
                         </div>
                     </form>
 
-                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                    <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
                         NexGPT can make mistakes. Check important information.
                     </p>
 

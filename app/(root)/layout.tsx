@@ -1,31 +1,20 @@
-import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
 
-import { requireUser } from "@/lib/services/auth/require-user";
-import { ChatShell } from "@/components/chat/chat-shell";
+import type { Metadata } from "next";
 
-export const instant = false;
+export const metadata: Metadata = {
+    title: "NexGPT — One workspace. Multiple perspectives.",
+    description:
+        "Explore multiple AI perspectives, organize conversations, and work with your documents in one focused workspace.",
+};
 
-export default async function RootLayout({
+export default function RootLayout({
     children,
 }: {
-    children: ReactNode;
+    children: React.ReactNode;
 }) {
-    const user = await requireUser();
-
-    if (!user) {
-        redirect("/login");
-    }
-
     return (
-        <ChatShell
-            user={{
-                id: user.id,
-                name: user.name,
-                email: user.email,
-            }}
-        >
+        <div className="min-h-screen bg-white text-neutral-950">
             {children}
-        </ChatShell>
+        </div>
     );
 }

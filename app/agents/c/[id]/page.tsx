@@ -28,18 +28,13 @@ export default function ConversationPage({ params }: PageProps) {
 async function ConversationContent({ params }: PageProps) {
     const { id } = await params;
 
-    let conversation;
-
-    try {
-        conversation = await getConversation(id);
-    } catch {
-        notFound();
-    }
+    const conversation = await getConversation(id);
 
     const initialMessages = conversation.messages
         .filter(
             (message) =>
-                message.role === "USER" || message.role === "ASSISTANT",
+                message.role === "USER" ||
+                message.role === "ASSISTANT",
         )
         .map((message) => {
             const metadata =

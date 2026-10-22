@@ -51,7 +51,7 @@
     "nanoid": "^6.0.2",
     "next": "16.4.2",
     "next-themes": "^0.4.6",
-    "node": "^26.12.0",
+    "node": "^26.12.1",
     "openai": "^7.39.0",
     "openid-client": "^6.8.8",
     "pdf-parse": "^2.4.5",

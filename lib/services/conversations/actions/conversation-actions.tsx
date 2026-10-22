@@ -146,7 +146,7 @@ export async function updateConversation(
     });
 
     revalidatePath("/dashboard");
-    revalidatePath(`/c/${conversationId}`);
+    revalidatePath(`/agents/c/${conversationId}`);
 
     return conversation;
 }
@@ -172,8 +172,7 @@ export async function deleteConversation(
         throw new Error("Conversation not found");
     }
 
-    revalidatePath("/dashboard");
-    revalidatePath("/");
+    revalidatePath("/agents");
 
     return { id: conversationId };
 }

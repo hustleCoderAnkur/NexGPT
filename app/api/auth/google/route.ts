@@ -69,7 +69,7 @@ export async function GET(request: Request) {
         );
 
         const target = new URL(
-            intent === "register" ? "/register" : "/login",
+            intent === "register" ? "/signup" : "/login",
             request.url
         );
 

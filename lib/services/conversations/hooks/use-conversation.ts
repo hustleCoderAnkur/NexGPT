@@ -38,7 +38,7 @@ export function useCreateConversation() {
                 type: "success",
             })
 
-            router.push(`/c/${conversation.id}`)
+            router.push(`/agents/c/${conversation.id}`)
         },
 
         onError: (error: Error) => {
@@ -69,7 +69,7 @@ export function useDeleteConversation() {
                 type: "success",
             })
 
-            router.push("/")
+            router.push("/agents")
         },
 
         onError: (error: Error) => {

@@ -51,7 +51,7 @@ function RegisterForm() {
         setLoading(true);
 
         try {
-            const response = await fetch("/api/auth/register", {
+            const response = await fetch("/api/auth/signup", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -70,7 +70,7 @@ function RegisterForm() {
                 setError(data.error ?? "Registration failed. Please try again.");
                 return;
             }
-            router.replace("/");
+            router.replace("/agents");
         } catch {
             setError("Unable to connect to the server. Please try again.");
         } finally {
@@ -93,9 +93,7 @@ function RegisterForm() {
             <div className="relative z-10 w-full max-w-120">
                 <header className="mb-8 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3">
-                        <span className="flex size-10 items-center justify-center border-2 border-black bg-lime-300 shadow-[3px_3px_0_#000]">
-                            <ArrowDownRight size={25} strokeWidth={3} />
-                        </span>
+
                         <span className="text-xl font-black tracking-[-0.07em]">
                             NEXGPT<span className="text-lime-600">.</span>
                         </span>

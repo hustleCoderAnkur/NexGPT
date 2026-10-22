@@ -102,8 +102,8 @@ export async function createMessage(conversationId: string, content: string) {
         },
     });
 
-    revalidatePath("/");
-    revalidatePath(`/c/${conversationId}`);
+    revalidatePath("/agents");
+    revalidatePath(`/agents/c/${conversationId}`);
     return message;
 }
 
@@ -130,7 +130,7 @@ export async function updateMessage(messageId: string, content: string) {
         data: { content: trimmed },
     });
 
-    revalidatePath(`/c/${existing.conversationId}`);
+    revalidatePath(`/agents/c/${existing.conversationId}`);
     return message;
 }
 
@@ -149,6 +149,6 @@ export async function deleteMessage(messageId: string) {
 
     await prisma.message.delete({ where: { id: messageId } });
 
-    revalidatePath(`/c/${existing.conversationId}`);
+    revalidatePath(`/agents/c/${existing.conversationId}`);
     return { id: messageId, conversationId: existing.conversationId };
 }
