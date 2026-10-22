@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
     ArrowUp,
+    FileText,
     KeyRound,
     LoaderCircle,
     Plus,
@@ -124,6 +125,26 @@ export function ChatWorkspace({
         [selected],
     );
 
+    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    function handleFilesSelected(
+        event: React.ChangeEvent<HTMLInputElement>
+    ) {
+        const files = Array.from(event.target.files ?? []);
+
+        setAttachedFiles((current) => [...current, ...files]);
+
+        // Same file ko dobara select karne ki permission
+        event.target.value = "";
+    }
+
+    function removeAttachedFile(index: number) {
+        setAttachedFiles((current) =>
+            current.filter((_, i) => i !== index)
+        );
+    }
+
     function toggleProvider(provider: Provider) {
         if (busy) return;
 
@@ -157,12 +178,20 @@ export function ChatWorkspace({
         });
     }
 
+
     async function sendMessage(event?: FormEvent<HTMLFormElement>) {
         event?.preventDefault();
 
         const text = draft.trim();
+        const filesToUpload = [...attachedFiles];
 
-        if (!text || busy || selected.length === 0) return;
+        if (
+            (!text && filesToUpload.length === 0) ||
+            busy ||
+            selected.length === 0
+        ) {
+            return;
+        }
 
         const missing = selected.find(
             (provider) => !keys[provider]?.trim(),
@@ -176,7 +205,7 @@ export function ChatWorkspace({
             return;
         }
 
-        // Freeze the provider selection and keys for this request.
+        // Freeze provider selections and API keys for this request.
         const requestSelections = selections.map((selection) => ({
             ...selection,
         }));
@@ -188,18 +217,21 @@ export function ChatWorkspace({
         setGeneralError(null);
         setStreaming({});
         setSources({});
-        setDraft("");
 
         let activeId = id;
+        let userMessageAdded = false;
 
         const collected: Partial<Record<Provider, string>> = {};
         const started = new Set<Provider>();
         const failed = new Set<Provider>();
 
         try {
+            // Create a conversation if this is the first message.
             if (!activeId) {
                 const created = await createConversation(
-                    text.slice(0, 48) || "New Chat",
+                    text.slice(0, 48) ||
+                    filesToUpload[0]?.name.slice(0, 48) ||
+                    "New Chat",
                     requestSelections[0]!.modelId,
                 );
 
@@ -213,14 +245,68 @@ export function ChatWorkspace({
                 );
             }
 
+            // Upload attachments and collect their document IDs.
+            const documentIds: string[] = [];
+
+            for (const file of filesToUpload) {
+                const formData = new FormData();
+                formData.set("file", file);
+
+                const uploadResponse = await fetch(
+                    "/api/documents/upload",
+                    {
+                        method: "POST",
+                        credentials: "same-origin",
+                        body: formData,
+                    },
+                );
+
+                const uploadData = await uploadResponse
+                    .json()
+                    .catch(() => ({}));
+
+                if (!uploadResponse.ok) {
+                    throw new Error(
+                        uploadData.error ??
+                        `Failed to upload ${file.name}.`,
+                    );
+                }
+
+                const documentId = uploadData.document?.id;
+
+                if (
+                    typeof documentId !== "string" ||
+                    !documentId
+                ) {
+                    throw new Error(
+                        `No document ID returned for ${file.name}.`,
+                    );
+                }
+
+                documentIds.push(documentId);
+            }
+
+            // Keep the attachments if upload failed before this point.
+            setAttachedFiles((current) =>
+                current.filter(
+                    (file) => !filesToUpload.includes(file),
+                ),
+            );
+
             const userMessage: StoredMessage = {
                 id: crypto.randomUUID(),
                 role: "user",
                 content: text,
             };
 
-            setMessages((current) => [...current, userMessage]);
+            setMessages((current) => [
+                ...current,
+                userMessage,
+            ]);
+            userMessageAdded = true;
+            setDraft("");
 
+            // Send the message and uploaded document IDs to the chat API.
             const response = await fetch("/api/ai/chat", {
                 method: "POST",
                 headers: {
@@ -232,18 +318,27 @@ export function ChatWorkspace({
                     message: {
                         id: userMessage.id,
                         role: "user",
-                        parts: [{ type: "text", text }],
+                        parts: [
+                            {
+                                type: "text",
+                                text,
+                            },
+                        ],
                     },
                     selections: requestSelections,
                     keys: requestKeys,
+                    documentIds,
                 }),
             });
 
             if (!response.ok || !response.body) {
-                const body = await response.json().catch(() => ({}));
+                const body = await response
+                    .json()
+                    .catch(() => ({}));
 
                 throw new Error(
-                    body.error || `Request failed (${response.status})`,
+                    body.error ??
+                    `Request failed (${response.status})`,
                 );
             }
 
@@ -259,8 +354,15 @@ export function ChatWorkspace({
 
                 const provider = data.provider;
 
-                if (data.type === "sources" && provider && data.citations) {
-                    setSources(current => ({ ...current, [provider]: data.citations }));
+                if (
+                    data.type === "sources" &&
+                    provider &&
+                    data.citations
+                ) {
+                    setSources((current) => ({
+                        ...current,
+                        [provider]: data.citations,
+                    }));
                     return;
                 }
 
@@ -268,7 +370,8 @@ export function ChatWorkspace({
                     data.type === "start" &&
                     provider &&
                     requestSelections.some(
-                        (selection) => selection.provider === provider,
+                        (selection) =>
+                            selection.provider === provider,
                     )
                 ) {
                     started.add(provider);
@@ -285,18 +388,21 @@ export function ChatWorkspace({
                     data.type === "delta" &&
                     provider &&
                     requestSelections.some(
-                        (selection) => selection.provider === provider,
+                        (selection) =>
+                            selection.provider === provider,
                     )
                 ) {
                     const chunk = data.text ?? "";
 
                     started.add(provider);
+
                     collected[provider] =
                         (collected[provider] ?? "") + chunk;
 
                     setStreaming((current) => ({
                         ...current,
-                        [provider]: (current[provider] ?? "") + chunk,
+                        [provider]:
+                            (current[provider] ?? "") + chunk,
                     }));
 
                     return;
@@ -306,7 +412,8 @@ export function ChatWorkspace({
                     data.type === "error" &&
                     provider &&
                     requestSelections.some(
-                        (selection) => selection.provider === provider,
+                        (selection) =>
+                            selection.provider === provider,
                     )
                 ) {
                     failed.add(provider);
@@ -318,17 +425,23 @@ export function ChatWorkspace({
                             `${getProviderLabel(provider)} request failed.`,
                     }));
 
-                    // Keep other providers streaming independently.
+                    // Other providers can continue streaming.
                     setStreaming((current) => {
                         const next = { ...current };
                         delete next[provider];
                         return next;
                     });
+
+                    return;
                 }
 
-                if (data.type === "error" && !provider) {
+                if (
+                    data.type === "error" &&
+                    !provider
+                ) {
                     setGeneralError(
-                        data.message ?? "The comparison request failed.",
+                        data.message ??
+                        "The comparison request failed.",
                     );
                 }
             }
@@ -338,9 +451,11 @@ export function ChatWorkspace({
 
                 if (done) break;
 
-                buffer += decoder.decode(value, { stream: true });
+                buffer += decoder.decode(value, {
+                    stream: true,
+                });
 
-                // SSE frames may use either LF or CRLF line endings.
+                // Handle LF and CRLF SSE frame separators.
                 const frames = buffer.split(/\r?\n\r?\n/);
                 buffer = frames.pop() ?? "";
 
@@ -349,10 +464,9 @@ export function ChatWorkspace({
                 }
             }
 
-            // Flush any remaining decoder bytes.
+            // Flush remaining decoder bytes and the final SSE frame.
             buffer += decoder.decode();
 
-            // Process the final frame if it wasn't terminated by a blank line.
             if (buffer.trim()) {
                 processFrame(buffer);
             }
@@ -380,7 +494,6 @@ export function ChatWorkspace({
                 ]);
             }
 
-            // A successful provider stays visible even if another failed.
             router.refresh();
         } catch (error) {
             setGeneralError(
@@ -388,11 +501,18 @@ export function ChatWorkspace({
                     ? error.message
                     : "Something went wrong.",
             );
+
+            // Avoid duplicating a message that was already added locally.
+            if (userMessageAdded) {
+                // The uploaded documents remain available in the account.
+                // Retry behavior should be handled separately.
+            }
         } finally {
             setBusy(false);
             setStreaming({});
         }
     }
+
 
     const liveEntries = selected.filter(
         (provider) =>
@@ -588,10 +708,20 @@ export function ChatWorkspace({
                         </div>
                     ) : null}
 
+
                     <form
                         onSubmit={(event) => void sendMessage(event)}
                         className="rounded-3xl border bg-background p-3 shadow-sm focus-within:ring-1 focus-within:ring-ring"
                     >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.xlsx,.xls,.pptx,.js,.jsx,.ts,.tsx,.py,.java,.sql,.html,.css"
+                            onChange={handleFilesSelected}
+                        />
+
                         <textarea
                             value={draft}
                             onChange={(event) => setDraft(event.target.value)}
@@ -611,34 +741,70 @@ export function ChatWorkspace({
                             className="max-h-48 min-h-12 w-full resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
                         />
 
+                        {attachedFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2 px-2 py-2">
+                                {attachedFiles.map((file, index) => (
+                                    <div
+                                        key={`${file.name}-${file.size}-${index}`}
+                                        className="flex max-w-full items-center gap-2 rounded-xl border bg-muted/40 px-3 py-2 text-xs"
+                                    >
+                                        <FileText size={15} className="shrink-0" />
+
+                                        <span className="max-w-48 truncate">
+                                            {file.name}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            aria-label={`Remove ${file.name}`}
+                                            onClick={() => removeAttachedFile(index)}
+                                            className="shrink-0 rounded-full p-1 hover:bg-muted"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs text-muted-foreground">
-                                {selected.length} provider
-                                {selected.length === 1 ? "" : "s"} selected ·
-                                Enter to send
-                            </span>
+                            <div className="flex min-w-0 items-center gap-2">
+                                <button
+                                    type="button"
+                                    aria-label="Attach files"
+                                    title="Attach files"
+                                    disabled={busy}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex size-9 shrink-0 items-center justify-center rounded-full border hover:bg-muted disabled:opacity-40"
+                                >
+                                    <Plus size={19} />
+                                </button>
+
+                                <span className="truncate text-xs text-muted-foreground">
+                                    {selected.length} provider
+                                    {selected.length === 1 ? "" : "s"} selected · Enter to send
+                                </span>
+                            </div>
 
                             <button
                                 type="submit"
                                 disabled={
                                     busy ||
-                                    !draft.trim() ||
+                                    (!draft.trim() && attachedFiles.length === 0) ||
                                     selected.length === 0
                                 }
                                 aria-label="Send message"
-                                className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+                                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
                             >
                                 {busy ? (
-                                    <LoaderCircle
-                                        size={17}
-                                        className="animate-spin"
-                                    />
+                                    <LoaderCircle size={17} className="animate-spin" />
                                 ) : (
                                     <ArrowUp size={18} />
                                 )}
                             </button>
                         </div>
                     </form>
+
 
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                         NexGPT can make mistakes. Check important information.

@@ -195,12 +195,6 @@ export function ChatShell({
                         <Link href="/documents" title="Knowledge documents" className={`flex h-9 items-center gap-3 rounded-lg px-3 text-sm hover:bg-sidebar-accent ${pathname.startsWith("/documents") ? "bg-sidebar-accent font-medium" : ""}`}>
                             <FileText size={17} />{!collapsed && <span>Documents</span>}
                         </Link>
-                        <Link href="/evaluations" title="Evaluation lab" className={`flex h-9 items-center gap-3 rounded-lg px-3 text-sm hover:bg-sidebar-accent ${pathname.startsWith("/evaluations") ? "bg-sidebar-accent font-medium" : ""}`}>
-                            <FlaskConical size={17} />{!collapsed && <span>Evaluation lab</span>}
-                        </Link>
-                        <Link href="/settings/ai" title="AI settings" className={`flex h-9 items-center gap-3 rounded-lg px-3 text-sm hover:bg-sidebar-accent ${pathname.startsWith("/settings/ai") ? "bg-sidebar-accent font-medium" : ""}`}>
-                            <Settings2 size={17} />{!collapsed && <span>AI settings</span>}
-                        </Link>
                     </div>
 
                     {!collapsed && (

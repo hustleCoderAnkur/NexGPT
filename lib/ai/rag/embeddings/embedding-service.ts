@@ -3,6 +3,10 @@ const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMENSIONS = 768;
 const EMBEDDING_TIMEOUT_MS = 15_000;
 
+export type EmbeddingTask =
+  | "RETRIEVAL_DOCUMENT"
+  | "RETRIEVAL_QUERY";
+
 type EmbeddingResponse = {
   embedding?: {
     values?: number[];
@@ -13,13 +17,10 @@ type EmbeddingResponse = {
   };
 };
 
-/**
- * Generate a document embedding using Google's embedding API.
- *
- * Requires GOOGLE_GENERATIVE_AI_API_KEY in the server environment.
- * Returns a 768-dimensional vector for retrieval.
- */
-export async function embedText(text: string): Promise<number[] | null> {
+export async function embedText(
+  text: string,
+  taskType: EmbeddingTask = "RETRIEVAL_DOCUMENT",
+): Promise<number[]> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
   if (!apiKey) {
@@ -31,7 +32,9 @@ export async function embedText(text: string): Promise<number[] | null> {
   const normalizedText = text.trim();
 
   if (!normalizedText) {
-    throw new Error("Cannot generate an embedding for empty text.");
+    throw new Error(
+      "Cannot generate an embedding for empty text.",
+    );
   }
 
   const response = await fetch(
@@ -47,7 +50,7 @@ export async function embedText(text: string): Promise<number[] | null> {
         content: {
           parts: [{ text: normalizedText.slice(0, 8000) }],
         },
-        taskType: "RETRIEVAL_DOCUMENT",
+        taskType,
         outputDimensionality: EMBEDDING_DIMENSIONS,
       }),
       signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
@@ -61,15 +64,20 @@ export async function embedText(text: string): Promise<number[] | null> {
     try {
       const parsed: unknown = JSON.parse(errorBody);
 
-      if (parsed && typeof parsed === "object" && "error" in parsed) {
-        const providerError = (parsed as EmbeddingResponse).error;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "error" in parsed
+      ) {
+        const providerError =
+          (parsed as EmbeddingResponse).error;
+
         providerMessage = providerError?.message ?? "";
       }
     } catch {
-      // The provider did not return a JSON error body.
+      // Ignore non-JSON error bodies.
     }
 
-    // Do not log the API key or request headers.
     console.error("[Embeddings] Google API request failed", {
       status: response.status,
       statusText: response.statusText,
@@ -88,19 +96,14 @@ export async function embedText(text: string): Promise<number[] | null> {
   if (
     !Array.isArray(values) ||
     values.length !== EMBEDDING_DIMENSIONS ||
-    !values.every((value) => Number.isFinite(value))
+    !values.every(Number.isFinite)
   ) {
-    throw new Error(
-      "Google returned an invalid embedding vector.",
-    );
+    throw new Error("Google returned an invalid embedding vector.");
   }
 
   return values;
 }
 
-/**
- * Calculate cosine similarity between two vectors.
- */
 export function cosineSimilarity(
   a: number[],
   b: number[],
@@ -124,9 +127,7 @@ export function cosineSimilarity(
     normB += b[i] ** 2;
   }
 
-  if (normA === 0 || normB === 0) {
-    return 0;
-  }
+  if (normA === 0 || normB === 0) return 0;
 
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }

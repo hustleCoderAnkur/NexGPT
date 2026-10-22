@@ -37,7 +37,7 @@ async function DocumentsContent() {
 export default function DocumentsPage() {
   return (
     <Suspense fallback={<DocumentsLoading />}>
-      <DocumentManager />
+      <DocumentsContent />
     </Suspense>
   );
 }
