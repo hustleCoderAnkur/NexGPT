@@ -1003,16 +1003,16 @@ export function ChatWorkspace({
                                     {provider.label} API key
 
                                     <input
-                                        type="password"
-                                        autoComplete="off"
+                                        type="text"
+                                        name={`api-key-${provider.id}`}
+                                        autoComplete="new-password"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
                                         spellCheck={false}
                                         value={keys[provider.id] ?? ""}
                                         disabled={busy}
                                         onChange={(event) =>
-                                            updateApiKey(
-                                                provider.id,
-                                                event.target.value,
-                                            )
+                                            updateApiKey(provider.id, event.target.value)
                                         }
                                         placeholder="Paste API key"
                                         className="h-10 min-w-0 rounded-none border-2 border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-950 focus:ring-2 focus:ring-lime-300 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
