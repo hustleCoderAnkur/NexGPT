@@ -1,15 +1,23 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import {
     ArrowUp,
+    ChevronLeft,
+    ChevronRight,
+    Columns2,
+    Copy,
     FileText,
     KeyRound,
     LoaderCircle,
     Plus,
     ShieldCheck,
+    ThumbsUp,
+    ThumbsDown,
+    Volume2,
+    Share2,
+    Check,
     X,
 } from "lucide-react";
 
@@ -24,6 +32,23 @@ import {
     ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { createConversation } from "@/lib/services/conversations/actions/conversation-actions";
+
+
+import { OpenAI, Gemini, Anthropic } from "@lobehub/icons";
+
+function ProviderLogo({ provider }: { provider?: Provider }) {
+    switch (provider) {
+        case "openai":
+            return <OpenAI size={22} />;
+        case "google":
+            return <Gemini size={22} />;
+        case "anthropic":
+            return <Anthropic size={22} />;
+        default:
+            return <span className="text-sm font-bold">AI</span>;
+    }
+}
+
 
 type Provider = "openai" | "google" | "anthropic";
 
@@ -48,7 +73,39 @@ type StoredMessage = {
     content: string;
     provider?: string;
     modelId?: string;
+    attachments?: { documentId: string; name: string; size: number; type: string }[];
 };
+
+type MessageTurn = {
+    user: StoredMessage;
+    assistants: StoredMessage[];
+};
+
+function groupMessagesIntoTurns(messages: StoredMessage[]): MessageTurn[] {
+    const turns: MessageTurn[] = [];
+    let currentTurn: MessageTurn | null = null;
+
+    for (const message of messages) {
+        if (message.role === "user") {
+            currentTurn = { user: message, assistants: [] };
+            turns.push(currentTurn);
+        } else if (currentTurn) {
+            currentTurn.assistants.push(message);
+        } else {
+            // Keep legacy assistant-only history visible if it exists.
+            turns.push({
+                user: {
+                    id: `legacy-user-${message.id}`,
+                    role: "user",
+                    content: "",
+                },
+                assistants: [message],
+            });
+        }
+    }
+
+    return turns;
+}
 
 const MODEL_OPTIONS: Record<Provider, { id: string; label: string }> = {
     openai: {
@@ -91,6 +148,108 @@ function parseEventFrame(frame: string): EventData | null {
     }
 }
 
+function AssistantResponseCard({
+    message,
+    sources,
+    copied,
+    onCopy,
+}: {
+    message: StoredMessage;
+    sources?: NonNullable<EventData["citations"]>;
+    copied: boolean;
+    onCopy: () => void | Promise<void>;
+}) {
+    const provider = message.provider as Provider | undefined;
+    const label = provider ? getProviderLabel(provider) : "AI assistant";
+    const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
+    return (
+        <article className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <header className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted">
+                        <ProviderLogo provider={provider} />
+                    </span>
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{label}</p>
+                        <p className="truncate text-xs text-muted-foreground">{message.modelId ?? "AI response"}</p>
+                    </div>
+                </div>
+                <button type="button" onClick={() => void onCopy()} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-muted" aria-label="Copy response"><Copy size={13} />{copied ? "Copied" : "Copy"}</button>
+            </header>
+            <div className="p-4">
+                <Message from="assistant"><MessageContent><MessageResponse>{message.content}</MessageResponse></MessageContent></Message>
+            </div>
+            {sources?.length ? <details className="border-t px-4 py-3 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium">Sources · {sources.length} relevant chunk{sources.length === 1 ? "" : "s"}</summary>
+                <div className="mt-2 space-y-1">{sources.map((source) => <p key={source.chunkId}>[{source.index}] {source.documentName} · relevance {source.score.toFixed(2)}</p>)}</div>
+            </details> : null}
+
+            <div className="mt-3 flex items-center gap-1 border-t px-3 py-2.5">
+                <button type="button" onClick={() => void onCopy()} title={copied ? "Copied" : "Copy response"} aria-label={copied ? "Copied response" : "Copy response"} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    {copied ? <Check size={17} /> : <Copy size={17} />}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setFeedback(feedback === "up" ? null : "up")}
+                    title="Good response"
+                    aria-label="Good response"
+                    aria-pressed={feedback === "up"}
+                    className={`group rounded-lg p-2 transition-all duration-200 hover:bg-green-500/10 active:scale-90 ${feedback === "up"
+                        ? "scale-110 text-green-500"
+                        : "text-muted-foreground hover:text-green-500"
+                        }`}
+                >
+                    <ThumbsUp
+                        size={17}
+                        className={`transition-all duration-200 ${feedback === "up"
+                            ? "animate-[feedback-pop_350ms_ease-out] fill-green-500/20"
+                            : "group-hover:-translate-y-0.5"
+                            }`}
+                    />
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setFeedback(feedback === "down" ? null : "down")}
+                    title="Bad response"
+                    aria-label="Bad response"
+                    aria-pressed={feedback === "down"}
+                    className={`group rounded-lg p-2 transition-all duration-200 hover:bg-red-500/10 active:scale-90 ${feedback === "down"
+                        ? "scale-110 text-red-500"
+                        : "text-muted-foreground hover:text-red-500"
+                        }`}
+                >
+                    <ThumbsDown
+                        size={17}
+                        className={`transition-all duration-200 ${feedback === "down"
+                            ? "animate-[feedback-shake_350ms_ease-out] fill-red-500/20"
+                            : "group-hover:translate-y-0.5"
+                            }`}
+                    />
+                </button>
+
+                <button type="button" onClick={() => {
+                    if (!("speechSynthesis" in window)) return;
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(new SpeechSynthesisUtterance(message.content));
+                }} title="Read aloud" aria-label="Read response aloud" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <Volume2 size={17} />
+                </button>
+                <button type="button" onClick={() => {
+                    if (navigator.share) {
+                        void navigator.share({ title: `${label} response`, text: message.content }).catch(() => { });
+                    } else {
+                        void navigator.clipboard.writeText(message.content);
+                    }
+                }} title="Share response" aria-label="Share response" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <Share2 size={17} />
+                </button>
+            </div>
+        </article>
+    );
+}
+
 export function ChatWorkspace({
     conversationId,
     initialMessages = [],
@@ -98,8 +257,6 @@ export function ChatWorkspace({
     conversationId?: string;
     initialMessages?: StoredMessage[];
 }) {
-    const router = useRouter();
-
     const [id, setId] = useState(conversationId);
     const [messages, setMessages] =
         useState<StoredMessage[]>(initialMessages);
@@ -108,8 +265,11 @@ export function ChatWorkspace({
     const [keys, setKeys] = useState<Partial<Record<Provider, string>>>({});
     const [showKeys, setShowKeys] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [responseView, setResponseView] = useState<"swipe" | "compare">("swipe");
+    const [activeResponse, setActiveResponse] = useState(0);
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+    const [statusPhraseIndex, setStatusPhraseIndex] = useState(0);
     const [sources, setSources] = useState<Partial<Record<Provider, NonNullable<EventData["citations"]>>>>({});
-
     const [errors, setErrors] =
         useState<Partial<Record<Provider, string>>>({});
     const [generalError, setGeneralError] = useState<string | null>(null);
@@ -125,8 +285,72 @@ export function ChatWorkspace({
         [selected],
     );
 
+    // Keep each assistant response attached to the user turn that triggered it.
+    const turns = useMemo(() => groupMessagesIntoTurns(messages), [messages]);
+
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+
+    const statusPhrases = [
+        "Analyzing",
+        "Interpreting",
+        "Reasoning",
+        "Inferring",
+        "Reflecting",
+        "Evaluating",
+        "Synthesizing",
+        "Contextualizing",
+        "Disambiguating",
+        "Extrapolating",
+        "Correlating",
+        "Decomposing",
+        "Reformulating",
+        "Reassessing",
+        "Prioritizing",
+        "Verifying",
+        "Revising",
+        "Elaborating",
+        "Formulating",
+        "Composing",
+        "Articulating",
+        "Generating",
+        "Elucidating",
+        "Summarizing",
+        "Refining",
+        "Consolidating",
+        "Responding",
+        "Finalizing",
+    ];
+
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
+
+    useEffect(() => {
+        if (!busy) return;
+
+        const timer = window.setInterval(() => {
+            setStatusPhraseIndex((index) => {
+                if (statusPhrases.length <= 1) return index;
+
+                let nextIndex;
+
+                do {
+                    nextIndex = Math.floor(
+                        Math.random() * statusPhrases.length
+                    );
+                } while (nextIndex === index);
+
+                return nextIndex;
+            });
+        }, 2600);
+
+        return () => window.clearInterval(timer);
+    }, [busy, statusPhrases.length]);
+
+
+
 
     function handleFilesSelected(
         event: React.ChangeEvent<HTMLInputElement>
@@ -147,6 +371,12 @@ export function ChatWorkspace({
 
     function toggleProvider(provider: Provider) {
         if (busy) return;
+
+        const removingProvider = selected.includes(provider);
+        if (removingProvider && selected.length <= 2) {
+            setResponseView("swipe");
+            setActiveResponse(0);
+        }
 
         setSelected((current) => {
             if (current.includes(provider)) {
@@ -212,6 +442,8 @@ export function ChatWorkspace({
 
         const requestKeys = { ...keys };
 
+
+        setStatusPhraseIndex(0);
         setBusy(true);
         setErrors({});
         setGeneralError(null);
@@ -246,6 +478,7 @@ export function ChatWorkspace({
             }
 
             // Upload attachments and collect their document IDs.
+            const uploadedDocuments: { documentId: string; name: string; size: number; type: string }[] = [];
             const documentIds: string[] = [];
 
             for (const file of filesToUpload) {
@@ -284,6 +517,12 @@ export function ChatWorkspace({
                 }
 
                 documentIds.push(documentId);
+                uploadedDocuments.push({
+                    documentId,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type || "application/octet-stream",
+                });
             }
 
             // Keep the attachments if upload failed before this point.
@@ -296,7 +535,10 @@ export function ChatWorkspace({
             const userMessage: StoredMessage = {
                 id: crypto.randomUUID(),
                 role: "user",
-                content: text,
+                content: text || (uploadedDocuments.length === 1
+                    ? `Please summarize the attached document: ${uploadedDocuments[0]!.name}`
+                    : `Please summarize these ${uploadedDocuments.length} attached documents.`),
+                attachments: uploadedDocuments,
             };
 
             setMessages((current) => [
@@ -321,7 +563,9 @@ export function ChatWorkspace({
                         parts: [
                             {
                                 type: "text",
-                                text,
+                                text: text || (uploadedDocuments.length === 1
+                                    ? `Please summarize the attached document: ${uploadedDocuments[0]!.name}`
+                                    : `Please summarize these ${uploadedDocuments.length} attached documents.`),
                             },
                         ],
                     },
@@ -494,7 +738,6 @@ export function ChatWorkspace({
                 ]);
             }
 
-            router.refresh();
         } catch (error) {
             setGeneralError(
                 error instanceof Error
@@ -514,17 +757,12 @@ export function ChatWorkspace({
     }
 
 
-    const liveEntries = selected.filter(
-        (provider) =>
-            streaming[provider] !== undefined || Boolean(errors[provider]),
-    );
-
     return (
         <main className="flex min-h-0 flex-1 flex-col bg-background">
             <div className="flex min-h-0 flex-1 flex-col">
                 <Conversation className="min-h-0 flex-1">
                     <ConversationContent className="mx-auto w-full max-w-4xl gap-6 px-4 py-8 md:px-6">
-                        {messages.length === 0 && liveEntries.length === 0 ? (
+                        {messages.length === 0 ? (
                             <div className="flex min-h-[42vh] flex-col items-center justify-center text-center">
                                 <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                                     <Plus size={26} />
@@ -541,79 +779,168 @@ export function ChatWorkspace({
                             </div>
                         ) : null}
 
-                        {messages.map((message) => (
-                            <div key={message.id} className="space-y-2">
-                                {message.role === "assistant" &&
-                                    (message.provider || message.modelId) ? (
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        {message.provider} · {message.modelId}
-                                    </p>
-                                ) : null}
 
-                                <Message from={message.role}>
-                                    <MessageContent>
-                                        <MessageResponse>
-                                            {message.content}
-                                        </MessageResponse>
-                                    </MessageContent>
-                                </Message>
-                                {message.role === "assistant" && message.provider && sources[message.provider as Provider]?.length ? (
-                                    <div className="ml-2 space-y-1 text-xs text-muted-foreground">
-                                        <p className="font-medium">Sources</p>
-                                        {sources[message.provider as Provider]!.map(source => <p key={source.chunkId}>[{source.index}] {source.documentName}</p>)}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ))}
+                        {turns.map((turn, turnIndex) => {
+                            const isLatestTurn = turnIndex === turns.length - 1;
+                            const liveProviders = isLatestTurn
+                                ? selected.filter((provider) =>
+                                    streaming[provider] !== undefined ||
+                                    Boolean(errors[provider]),
+                                )
+                                : [];
+                            const turnResponses = turn.assistants;
+                            const responseCount = turnResponses.length;
+                            const safeActiveResponse = Math.min(
+                                activeResponse,
+                                Math.max(0, responseCount - 1),
+                            );
+                            const visibleResponses = responseView === "swipe"
+                                ? turnResponses.slice(safeActiveResponse, safeActiveResponse + 1)
+                                : turnResponses;
 
-                        {liveEntries.map((provider) => (
-                            <div key={provider} className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        {getProviderLabel(provider)} ·{" "}
-                                        {MODEL_OPTIONS[provider].label}
-                                    </p>
-
-                                    {errors[provider] ? (
-                                        <span className="text-xs text-destructive">
-                                            Failed
-                                        </span>
-                                    ) : busy ? (
-                                        <span className="text-xs text-muted-foreground">
-                                            Generating
-                                        </span>
+                            return (
+                                <section key={turn.user.id} className="space-y-4">
+                                    {turn.user.attachments?.length ? (
+                                        <div className="ml-auto flex max-w-3xl flex-wrap justify-end gap-2">
+                                            {turn.user.attachments.map((file) => (
+                                                <div
+                                                    key={file.documentId}
+                                                    className="flex max-w-full items-center gap-2 rounded-2xl border bg-muted/40 px-3 py-2 text-xs"
+                                                >
+                                                    <FileText size={17} className="shrink-0 text-primary" />
+                                                    <div className="min-w-0">
+                                                        <p className="max-w-64 truncate font-medium">{file.name}</p>
+                                                        <p className="text-muted-foreground">
+                                                            {(file.size / 1024).toFixed(file.size < 1024 * 1024 ? 0 : 1)}{" "}
+                                                            {file.size < 1024 * 1024 ? "KB" : "MB"} · Attached
+                                                        </p>
+                                                    </div>
+                                                    <Check size={14} className="shrink-0 text-emerald-500" />
+                                                </div>
+                                            ))}
+                                        </div>
                                     ) : null}
-                                </div>
 
-                                <Message from="assistant">
-                                    <MessageContent>
-                                        {errors[provider] ? (
-                                            <p
-                                                role="alert"
-                                                className="text-sm text-destructive"
+                                    {turn.user.content ? (
+                                        <div className="ml-auto max-w-3xl">
+                                            <Message from="user">
+                                                <MessageContent>
+                                                    <MessageResponse>{turn.user.content}</MessageResponse>
+                                                </MessageContent>
+                                            </Message>
+                                        </div>
+                                    ) : null}
+
+                                    {(responseCount > 0 || liveProviders.length > 0) ? (
+                                        <div className="space-y-3">
+                                            {responseCount > 0 && (
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                        <h2 className="text-sm font-semibold">Model responses</h2>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Answers to this message from your selected providers.
+                                                        </p>
+                                                    </div>
+                                                    {selected.length >= 2 && responseCount >= 2 && (
+                                                        <div className="inline-flex rounded-xl border p-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setResponseView("swipe")}
+                                                                aria-pressed={responseView === "swipe"}
+                                                                className={`rounded-lg px-3 py-1.5 text-xs ${responseView === "swipe" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                                                            >
+                                                                <span className="inline-flex items-center gap-1.5">
+                                                                    <ChevronLeft size={13} /><ChevronRight size={13} /> Swipe
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setResponseView("compare")}
+                                                                aria-pressed={responseView === "compare"}
+                                                                className={`rounded-lg px-3 py-1.5 text-xs ${responseView === "compare" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                                                            >
+                                                                <span className="inline-flex items-center gap-1.5">
+                                                                    <Columns2 size={14} /> Compare
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {responseView === "swipe" && responseCount >= 2 && (
+                                                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                                    <span>Response {safeActiveResponse + 1} of {responseCount}</span>
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Previous response"
+                                                            disabled={safeActiveResponse <= 0}
+                                                            onClick={() => setActiveResponse((index) => Math.max(0, index - 1))}
+                                                            className="rounded-lg border p-1.5 disabled:opacity-30"
+                                                        >
+                                                            <ChevronLeft size={16} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Next response"
+                                                            disabled={safeActiveResponse >= responseCount - 1}
+                                                            onClick={() => setActiveResponse((index) => Math.min(responseCount - 1, index + 1))}
+                                                            className="rounded-lg border p-1.5 disabled:opacity-30"
+                                                        >
+                                                            <ChevronRight size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className={responseView === "compare" && responseCount >= 2
+                                                ? "grid grid-cols-1 gap-5 xl:grid-cols-2"
+                                                : "space-y-5"}
                                             >
-                                                {errors[provider]}
-                                            </p>
-                                        ) : streaming[provider] ? (
-                                            <MessageResponse isAnimating>
-                                                {streaming[provider]}
-                                            </MessageResponse>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                <LoaderCircle className="size-4 animate-spin" />
-                                                Waiting for response...
+                                                {visibleResponses.map((message) => (
+                                                    <AssistantResponseCard
+                                                        key={message.id}
+                                                        message={message}
+                                                        sources={message.provider ? sources[message.provider as Provider] : undefined}
+                                                        copied={copiedMessageId === message.id}
+                                                        onCopy={async () => {
+                                                            await navigator.clipboard.writeText(message.content);
+                                                            setCopiedMessageId(message.id);
+                                                            window.setTimeout(() => setCopiedMessageId(null), 1500);
+                                                        }}
+                                                    />
+                                                ))}
                                             </div>
-                                        )}
-                                    </MessageContent>
-                                </Message>
-                                {sources[provider]?.length ? (
-                                    <div className="ml-2 space-y-1 text-xs text-muted-foreground">
-                                        <p className="font-medium">Sources</p>
-                                        {sources[provider]!.map(source => <p key={source.chunkId}>[{source.index}] {source.documentName}</p>)}
-                                    </div>
-                                ) : null}
+
+                                            {liveProviders.map((provider) => (
+                                                <AssistantResponseCard
+                                                    key={`live-${turn.user.id}-${provider}`}
+                                                    message={{
+                                                        id: `live-${turn.user.id}-${provider}`,
+                                                        role: "assistant",
+                                                        provider,
+                                                        modelId: MODEL_OPTIONS[provider].id,
+                                                        content: streaming[provider] ?? errors[provider] ?? `${statusPhrases[statusPhraseIndex]}…`,
+                                                    }}
+                                                    copied={false}
+                                                    onCopy={async () => {
+                                                        await navigator.clipboard.writeText(streaming[provider] ?? "");
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </section>
+                            );
+                        })}
+
+                        {busy && turns.length === 0 && (
+                            <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3" aria-live="polite">
+                                <LoaderCircle className="size-4 shrink-0 animate-spin text-primary" />
+                                <p className="text-sm text-muted-foreground">{statusPhrases[statusPhraseIndex]}…</p>
                             </div>
-                        ))}
+                        )}
 
                         <ConversationScrollButton />
                     </ConversationContent>
@@ -632,8 +959,8 @@ export function ChatWorkspace({
                                     onClick={() => toggleProvider(provider.id)}
                                     aria-pressed={active}
                                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active
-                                            ? "border-primary bg-primary text-primary-foreground"
-                                            : "border-border bg-background hover:bg-accent"
+                                        ? "border-primary bg-primary text-primary-foreground"
+                                        : "border-border bg-background hover:bg-accent"
                                         }`}
                                 >
                                     {provider.label}
@@ -711,7 +1038,7 @@ export function ChatWorkspace({
 
                     <form
                         onSubmit={(event) => void sendMessage(event)}
-                        className="rounded-3xl border bg-background p-3 shadow-sm focus-within:ring-1 focus-within:ring-ring"
+                        className="rounded-[28px] border bg-background p-3 shadow-sm transition-shadow focus-within:ring-1 focus-within:ring-ring"
                     >
                         <input
                             ref={fileInputRef}
@@ -738,7 +1065,7 @@ export function ChatWorkspace({
                             placeholder="Message NexGPT…"
                             rows={2}
                             disabled={busy}
-                            className="max-h-48 min-h-12 w-full resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                            className="max-h-48 min-h-16 w-full resize-y bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
                         />
 
                         {attachedFiles.length > 0 && (
@@ -767,25 +1094,20 @@ export function ChatWorkspace({
                             </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-2">
-                                <button
-                                    type="button"
-                                    aria-label="Attach files"
-                                    title="Attach files"
-                                    disabled={busy}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex size-9 shrink-0 items-center justify-center rounded-full border hover:bg-muted disabled:opacity-40"
-                                >
-                                    <Plus size={19} />
-                                </button>
+                        <div className="flex items-center justify-between px-1 pt-1">
+                            {/* Bottom left: attach files */}
+                            <button
+                                type="button"
+                                aria-label="Attach files"
+                                title="Attach files"
+                                disabled={busy}
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-muted disabled:opacity-40"
+                            >
+                                <Plus size={21} />
+                            </button>
 
-                                <span className="truncate text-xs text-muted-foreground">
-                                    {selected.length} provider
-                                    {selected.length === 1 ? "" : "s"} selected · Enter to send
-                                </span>
-                            </div>
-
+                            {/* Bottom right: send */}
                             <button
                                 type="submit"
                                 disabled={
@@ -794,7 +1116,7 @@ export function ChatWorkspace({
                                     selected.length === 0
                                 }
                                 aria-label="Send message"
-                                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+                                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
                             >
                                 {busy ? (
                                     <LoaderCircle size={17} className="animate-spin" />
@@ -805,10 +1127,10 @@ export function ChatWorkspace({
                         </div>
                     </form>
 
-
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                         NexGPT can make mistakes. Check important information.
                     </p>
+
                 </div>
             </div>
         </main>
