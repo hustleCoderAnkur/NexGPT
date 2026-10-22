@@ -38,8 +38,7 @@ export async function GET(request: Request) {
             nonce,
             code_challenge: codeChallenge,
             code_challenge_method: "S256",
-            // prompt: "consent select_account"
-            prompt: "select_account",
+            prompt: "consent select_account"
         });
 
 

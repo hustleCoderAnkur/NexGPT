@@ -559,7 +559,7 @@ export default function ProductPage() {
                     <div className="footer-links"><a href="#product">Product</a><a href="#capabilities">Capabilities</a><a href="#workflow">How it works</a><Link href="/login">Sign in</Link></div>
                 </div>
                 <Separator className="footer-sep" />
-                <div className="footer-bottom"><span>© {new Date().getFullYear()} NexGPT</span><span>Made for curious minds.</span><a href="#product">Back to top ↑</a></div>
+                <div className="footer-bottom"><span>&copy; 2026 NexGPT</span><span>Made for curious minds.</span><a href="#product">Back to top ↑</a></div>
             </footer>
 
             <style jsx global>{`
